@@ -3,6 +3,7 @@
 import argparse
 import sys
 
+from .client import MissingAPIKeyError
 from .config import load_account_config
 from .generator import generate_post, generate_reply
 
@@ -23,13 +24,24 @@ def main(argv: list[str] | None = None) -> int:
     reply_parser.add_argument("--comment", required=True, help="The comment to reply to")
 
     args = parser.parse_args(argv)
-    account = load_account_config(args.config)
 
-    if args.command == "post":
-        print(generate_post(account, args.topic))
-    elif args.command == "reply":
-        reply = generate_reply(account, args.comment)
-        print(reply if reply is not None else "SKIP")
+    try:
+        account = load_account_config(args.config)
+
+        if args.command == "post":
+            print(generate_post(account, args.topic))
+        elif args.command == "reply":
+            reply = generate_reply(account, args.comment)
+            print(reply if reply is not None else "SKIP")
+    except FileNotFoundError:
+        print(f"Erro: arquivo de config '{args.config}' não encontrado.", file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        print(f"Erro: {exc}", file=sys.stderr)
+        return 1
+    except MissingAPIKeyError as exc:
+        print(f"Erro: {exc}", file=sys.stderr)
+        return 1
 
     return 0
 

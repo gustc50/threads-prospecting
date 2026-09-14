@@ -3,8 +3,16 @@
 import os
 from typing import Protocol
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 DEFAULT_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5")
 DEFAULT_MAX_TOKENS = 300
+
+
+class MissingAPIKeyError(RuntimeError):
+    """Raised when ANTHROPIC_API_KEY isn't set in the environment or .env file."""
 
 
 class LLMClient(Protocol):
@@ -18,6 +26,12 @@ class ClaudeClient:
 
     def __init__(self, model: str = DEFAULT_MODEL, max_tokens: int = DEFAULT_MAX_TOKENS):
         import anthropic
+
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            raise MissingAPIKeyError(
+                "ANTHROPIC_API_KEY não está definida. Defina a variável de "
+                "ambiente ou crie um arquivo .env (veja .env.example)."
+            )
 
         self._client = anthropic.Anthropic()
         self.model = model
