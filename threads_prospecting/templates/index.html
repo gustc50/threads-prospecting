@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Threads Prospecting</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Threads Prospecting</h1>
+    <p>Gere posts e respostas para o Threads com a API da Claude.</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="config" type="button">Configurações</button>
+    <button class="tab-btn" data-tab="post" type="button">Gerar post</button>
+    <button class="tab-btn" data-tab="reply" type="button">Gerar resposta</button>
+  </nav>
+
+  <main>
+    <section id="tab-config" class="tab-panel active">
+      <h2>Configurações da conta</h2>
+      <p id="config-status" class="status"></p>
+      <form id="config-form">
+        <label>Chave da API (ANTHROPIC_API_KEY)
+          <input type="password" id="api_key" autocomplete="off" placeholder="Deixe em branco para manter a atual">
+        </label>
+        <label>Nicho/tema
+          <input type="text" id="nicho" required placeholder="ex: finanças pessoais para autônomos">
+        </label>
+        <label>Tom de voz
+          <input type="text" id="tom" required placeholder="ex: descontraído, técnico, provocador">
+        </label>
+        <label>Público-alvo
+          <input type="text" id="publico" required placeholder="ex: freelancers no Brasil">
+        </label>
+        <label>Nome da conta
+          <input type="text" id="nome_da_conta" required placeholder="ex: Finanças Sem Enrolação">
+        </label>
+        <button type="submit">Salvar configurações</button>
+      </form>
+      <p id="config-message" class="message"></p>
+    </section>
+
+    <section id="tab-post" class="tab-panel">
+      <h2>Gerar post</h2>
+      <form id="post-form">
+        <label>Tema/assunto do post
+          <input type="text" id="topic" required placeholder="ex: reserva de emergência">
+        </label>
+        <button type="submit">Gerar post</button>
+      </form>
+      <p id="post-message" class="message"></p>
+      <textarea id="post-result" readonly rows="6" placeholder="O post gerado aparece aqui..."></textarea>
+      <button id="post-copy" type="button" class="secondary">Copiar</button>
+    </section>
+
+    <section id="tab-reply" class="tab-panel">
+      <h2>Gerar resposta a um comentário</h2>
+      <form id="reply-form">
+        <label>Comentário recebido
+          <textarea id="comment" required rows="3" placeholder="Cole aqui o comentário..."></textarea>
+        </label>
+        <button type="submit">Gerar resposta</button>
+      </form>
+      <p id="reply-message" class="message"></p>
+      <textarea id="reply-result" readonly rows="4" placeholder="A resposta gerada aparece aqui..."></textarea>
+      <button id="reply-copy" type="button" class="secondary">Copiar</button>
+    </section>
+  </main>
+
+  <footer>
+    <p>Servidor local — para encerrar, feche a janela do terminal.</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
