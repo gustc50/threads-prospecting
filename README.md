@@ -53,10 +53,16 @@ que exige:
 
 - Um app registrado no [Meta for Developers](https://developers.facebook.com/docs/threads)
   com acesso à Threads API.
-- Um token de acesso de usuário com as permissões `threads_basic` e
-  `threads_content_publish` (para publicar) e a permissão **restrita**
-  `threads_keyword_search` (para buscar por palavra-chave) — essa precisa ser
-  aprovada pela Meta caso a caso, não vem liberada por padrão.
+- Um token de acesso de usuário com as permissões `threads_basic`
+  (obrigatória para qualquer chamada), `threads_manage_replies` (para
+  publicar respostas) e a permissão **restrita** `threads_keyword_search`
+  (para buscar por palavra-chave) — essa última precisa ser aprovada pela
+  Meta caso a caso, não vem liberada por padrão.
+
+Publicar uma resposta demora alguns segundos: a Meta processa o post
+assincronamente antes de deixar publicar, então o botão "Publicar" (ou a
+busca com o modo automático ligado) fica aguardando até ~60s por resposta
+antes de dar erro de timeout.
 
 **Atenção:** publicar respostas automaticamente em posts de estranhos, em
 volume, pode ser interpretado pela Meta como comportamento automatizado/spam

@@ -45,25 +45,59 @@ def test_search_keyword_returns_posts():
     assert params["access_token"] == "tok"
 
 
-def test_publish_reply_two_step_flow():
+def test_publish_reply_waits_for_container_then_publishes():
     session = FakeSession(
         [
             FakeResponse(200, {"id": "container-1"}),
+            FakeResponse(200, {"status_code": "IN_PROGRESS"}),
+            FakeResponse(200, {"status_code": "FINISHED"}),
             FakeResponse(200, {"id": "published-1"}),
         ]
     )
-    client = ThreadsClient(access_token="tok", user_id="123", session=session)
+    client = ThreadsClient(
+        access_token="tok", user_id="123", session=session, sleep_fn=lambda seconds: None
+    )
 
     published_id = client.publish_reply("post-1", "Posso ajudar com isso!")
 
     assert published_id == "published-1"
-    assert len(session.calls) == 2
-    first_method, first_url, first_params = session.calls[0]
-    assert first_url.endswith("/123/threads")
-    assert first_params["reply_to_id"] == "post-1"
-    second_method, second_url, second_params = session.calls[1]
-    assert second_url.endswith("/123/threads_publish")
-    assert second_params["creation_id"] == "container-1"
+    assert len(session.calls) == 4
+    create_method, create_url, create_params = session.calls[0]
+    assert create_url.endswith("/123/threads")
+    assert create_params["reply_to_id"] == "post-1"
+    poll_method, poll_url, _ = session.calls[1]
+    assert poll_method == "GET"
+    assert poll_url.endswith("/container-1")
+    publish_method, publish_url, publish_params = session.calls[3]
+    assert publish_url.endswith("/123/threads_publish")
+    assert publish_params["creation_id"] == "container-1"
+
+
+def test_publish_reply_raises_on_container_error_status():
+    session = FakeSession(
+        [
+            FakeResponse(200, {"id": "container-1"}),
+            FakeResponse(200, {"status_code": "ERROR"}),
+        ]
+    )
+    client = ThreadsClient(
+        access_token="tok", session=session, sleep_fn=lambda seconds: None
+    )
+
+    with pytest.raises(ThreadsAPIError, match="ERROR"):
+        client.publish_reply("post-1", "texto")
+
+
+def test_publish_reply_times_out_if_never_finished():
+    responses = [FakeResponse(200, {"id": "container-1"})]
+    responses += [FakeResponse(200, {"status_code": "IN_PROGRESS"})] * 30
+    session = FakeSession(responses)
+    client = ThreadsClient(
+        access_token="tok", session=session, sleep_fn=lambda seconds: None
+    )
+
+    with pytest.raises(ThreadsAPIError, match="Tempo esgotado"):
+        client.publish_reply("post-1", "texto")
 
 
 def test_error_response_raises_with_message():
