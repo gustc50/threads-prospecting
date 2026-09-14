@@ -16,6 +16,7 @@
     <button class="tab-btn active" data-tab="config" type="button">Configurações</button>
     <button class="tab-btn" data-tab="post" type="button">Gerar post</button>
     <button class="tab-btn" data-tab="reply" type="button">Gerar resposta</button>
+    <button class="tab-btn" data-tab="prospect" type="button">Prospecção</button>
   </nav>
 
   <main>
@@ -67,6 +68,44 @@
       <p id="reply-message" class="message"></p>
       <textarea id="reply-result" readonly rows="4" placeholder="A resposta gerada aparece aqui..."></textarea>
       <button id="reply-copy" type="button" class="secondary">Copiar</button>
+    </section>
+
+    <section id="tab-prospect" class="tab-panel">
+      <h2>Prospecção automática no Threads</h2>
+      <p class="hint">
+        Busca posts públicos no Threads por palavra-chave, a LLM decide se cada
+        post é um lead relevante e escreve a resposta. Requer um app da Meta com
+        acesso à Threads API aprovado (permissões <code>threads_content_publish</code>
+        e a restrita <code>threads_keyword_search</code>) e um token de acesso válido.
+      </p>
+
+      <h3>Credenciais do Threads</h3>
+      <p id="threads-status" class="status"></p>
+      <form id="threads-config-form">
+        <label>ID da conta no Threads (deixe "me" se não souber)
+          <input type="text" id="threads_user_id" placeholder="me">
+        </label>
+        <label>Token de acesso do Threads
+          <input type="password" id="threads_token" autocomplete="off" placeholder="Deixe em branco para manter o atual">
+        </label>
+        <button type="submit">Salvar credenciais do Threads</button>
+      </form>
+      <p id="threads-config-message" class="message"></p>
+
+      <h3>Buscar leads</h3>
+      <form id="prospect-form">
+        <label>Palavras-chave (separadas por vírgula)
+          <input type="text" id="keywords" required placeholder="ex: preciso de contador, abrir empresa">
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="auto_publish">
+          Publicar as respostas automaticamente, sem revisar antes (modo 100% autônomo)
+        </label>
+        <button type="submit">Buscar leads</button>
+      </form>
+      <p id="prospect-message" class="message"></p>
+
+      <div id="leads-list"></div>
     </section>
   </main>
 

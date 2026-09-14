@@ -96,3 +96,115 @@ def test_api_reply_reports_skip(client, monkeypatch):
 
     assert res.status_code == 200
     assert res.get_json() == {"reply": None, "skip": True}
+
+
+def test_get_threads_config_defaults(client):
+    res = client.get("/api/threads-config")
+    data = res.get_json()
+
+    assert data == {"user_id": "", "token_set": False}
+
+
+def test_save_threads_config_writes_env(client):
+    res = client.post(
+        "/api/threads-config", json={"user_id": "123456", "token": "thr-tok"}
+    )
+    assert res.status_code == 200
+
+    data = client.get("/api/threads-config").get_json()
+    assert data == {"user_id": "123456", "token_set": True}
+
+
+def test_prospect_search_requires_keywords(client):
+    res = client.post("/api/prospect/search", json={"keywords": []})
+    assert res.status_code == 400
+
+
+def test_prospect_search_requires_account_config(client):
+    res = client.post("/api/prospect/search", json={"keywords": ["contador"]})
+    assert res.status_code == 400
+    assert "Configure a conta" in res.get_json()["error"]
+
+
+def test_prospect_search_reports_missing_threads_token(client):
+    web._write_account(
+        {
+            "nicho": "contabilidade",
+            "tom": "descontraido",
+            "publico": "freelancers",
+            "nome_da_conta": "Conta",
+        }
+    )
+
+    res = client.post("/api/prospect/search", json={"keywords": ["contador"]})
+
+    assert res.status_code == 400
+    assert "Threads" in res.get_json()["error"]
+
+
+def test_prospect_search_returns_leads_without_publishing(client, monkeypatch):
+    web._write_account(
+        {
+            "nicho": "contabilidade",
+            "tom": "descontraido",
+            "publico": "freelancers",
+            "nome_da_conta": "Conta",
+        }
+    )
+    monkeypatch.setattr(web, "_load_threads_client", lambda: object())
+    fake_leads = [{"post": {"id": "1", "text": "preciso de ajuda"}, "reply": "Posso ajudar!", "skip": False}]
+    called = {}
+
+    def fake_find_leads(threads, account, keywords):
+        called["keywords"] = keywords
+        return fake_leads
+
+    monkeypatch.setattr(web, "find_leads", fake_find_leads)
+    monkeypatch.setattr(web, "run_prospecting", lambda *a, **k: pytest.fail("should not auto-publish"))
+
+    res = client.post("/api/prospect/search", json={"keywords": ["contador", "abrir empresa"]})
+
+    assert res.status_code == 200
+    assert res.get_json() == {"leads": fake_leads}
+    assert called["keywords"] == ["contador", "abrir empresa"]
+
+
+def test_prospect_search_auto_publish_uses_run_prospecting(client, monkeypatch):
+    web._write_account(
+        {
+            "nicho": "contabilidade",
+            "tom": "descontraido",
+            "publico": "freelancers",
+            "nome_da_conta": "Conta",
+        }
+    )
+    monkeypatch.setattr(web, "_load_threads_client", lambda: object())
+    fake_leads = [{"post": {"id": "1"}, "reply": "oi", "skip": False, "published_id": "p1"}]
+    monkeypatch.setattr(web, "find_leads", lambda *a, **k: pytest.fail("should auto-publish instead"))
+    monkeypatch.setattr(web, "run_prospecting", lambda *a, **k: fake_leads)
+
+    res = client.post(
+        "/api/prospect/search", json={"keywords": ["contador"], "auto_publish": True}
+    )
+
+    assert res.status_code == 200
+    assert res.get_json() == {"leads": fake_leads}
+
+
+def test_prospect_publish_requires_fields(client):
+    res = client.post("/api/prospect/publish", json={"post_id": "1"})
+    assert res.status_code == 400
+
+
+def test_prospect_publish_delegates_to_threads_client(client, monkeypatch):
+    monkeypatch.setattr(web, "_load_threads_client", lambda: object())
+    monkeypatch.setattr(
+        web, "publish_lead_reply", lambda threads, post_id, text: f"published-{post_id}"
+    )
+
+    res = client.post(
+        "/api/prospect/publish", json={"post_id": "1", "text": "Posso ajudar!"}
+    )
+
+    assert res.status_code == 200
+    assert res.get_json() == {"published_id": "published-1"}

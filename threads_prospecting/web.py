@@ -1,8 +1,9 @@
-"""Local web UI for generating Threads posts and replies.
+"""Local web UI for generating Threads posts/replies and running prospecting.
 
 Runs a Flask server bound to 127.0.0.1 only and opens the default browser
-automatically, so the whole flow (account config, API key, post/reply
-generation) happens in the browser instead of editing files by hand.
+automatically, so the whole flow (account config, API keys, post/reply
+generation, and searching+replying to leads on Threads) happens in the
+browser instead of editing files or the command line by hand.
 """
 
 from __future__ import annotations
@@ -13,11 +14,13 @@ import webbrowser
 from pathlib import Path
 
 import yaml
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 
 from .client import MissingAPIKeyError
 from .config import load_account_config
 from .generator import generate_post, generate_reply
+from .prospecting import find_leads, publish_lead_reply, run_prospecting
+from .threads_client import ThreadsAPIError, ThreadsClient
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ACCOUNT_PATH = BASE_DIR / "account.yaml"
@@ -53,41 +56,45 @@ def _write_account(data: dict) -> None:
     )
 
 
-def _read_api_key() -> str:
+def _read_env(name: str) -> str:
+    """Read a single KEY=value entry from the .env file."""
     if not ENV_PATH.exists():
         return ""
+    prefix = f"{name}="
     for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
-        if line.startswith("ANTHROPIC_API_KEY="):
-            return line.split("=", 1)[1].strip()
+        if line.startswith(prefix):
+            return line[len(prefix):].strip()
     return ""
 
 
-def _write_api_key(api_key: str) -> None:
+def _write_env(name: str, value: str) -> None:
+    """Set (or replace) a single KEY=value entry in the .env file."""
+    prefix = f"{name}="
     lines = []
     found = False
     if ENV_PATH.exists():
         for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
-            if line.startswith("ANTHROPIC_API_KEY="):
-                lines.append(f"ANTHROPIC_API_KEY={api_key}")
+            if line.startswith(prefix):
+                lines.append(f"{name}={value}")
                 found = True
             else:
                 lines.append(line)
     if not found:
-        lines.append(f"ANTHROPIC_API_KEY={api_key}")
+        lines.append(f"{name}={value}")
     ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    os.environ["ANTHROPIC_API_KEY"] = api_key
+    os.environ[name] = value
 
 
 @app.get("/")
 def index():
-    from flask import render_template
-
     return render_template("index.html")
 
 
 @app.get("/api/config")
 def get_config():
-    return jsonify({"account": _read_account(), "api_key_set": bool(_read_api_key())})
+    return jsonify(
+        {"account": _read_account(), "api_key_set": bool(_read_env("ANTHROPIC_API_KEY"))}
+    )
 
 
 @app.post("/api/config")
@@ -103,7 +110,7 @@ def save_config():
 
     api_key = (payload.get("api_key") or "").strip()
     if api_key:
-        _write_api_key(api_key)
+        _write_env("ANTHROPIC_API_KEY", api_key)
 
     return jsonify({"ok": True})
 
@@ -143,6 +150,79 @@ def api_reply():
         return jsonify({"error": str(exc)}), 400
     except MissingAPIKeyError as exc:
         return jsonify({"error": str(exc)}), 400
+
+
+@app.get("/api/threads-config")
+def get_threads_config():
+    return jsonify(
+        {
+            "user_id": _read_env("THREADS_USER_ID"),
+            "token_set": bool(_read_env("THREADS_ACCESS_TOKEN")),
+        }
+    )
+
+
+@app.post("/api/threads-config")
+def save_threads_config():
+    payload = request.get_json(silent=True) or {}
+    user_id = (payload.get("user_id") or "").strip()
+    token = (payload.get("token") or "").strip()
+
+    if user_id:
+        _write_env("THREADS_USER_ID", user_id)
+    if token:
+        _write_env("THREADS_ACCESS_TOKEN", token)
+
+    return jsonify({"ok": True})
+
+
+def _load_threads_client() -> ThreadsClient:
+    token = _read_env("THREADS_ACCESS_TOKEN")
+    user_id = _read_env("THREADS_USER_ID") or "me"
+    return ThreadsClient(access_token=token, user_id=user_id)
+
+
+@app.post("/api/prospect/search")
+def api_prospect_search():
+    payload = request.get_json(silent=True) or {}
+    keywords = [k.strip() for k in (payload.get("keywords") or []) if k.strip()]
+    auto_publish = bool(payload.get("auto_publish"))
+
+    if not keywords:
+        return jsonify({"error": "Informe ao menos uma palavra-chave."}), 400
+
+    try:
+        account = load_account_config(ACCOUNT_PATH)
+    except FileNotFoundError:
+        return jsonify({"error": "Configure a conta na aba Configurações antes de prospectar."}), 400
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    try:
+        threads = _load_threads_client()
+        pipeline = run_prospecting if auto_publish else find_leads
+        leads = pipeline(threads, account, keywords)
+    except (ThreadsAPIError, MissingAPIKeyError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"leads": leads})
+
+
+@app.post("/api/prospect/publish")
+def api_prospect_publish():
+    payload = request.get_json(silent=True) or {}
+    post_id = (payload.get("post_id") or "").strip()
+    text = (payload.get("text") or "").strip()
+    if not post_id or not text:
+        return jsonify({"error": "post_id e text são obrigatórios."}), 400
+
+    try:
+        threads = _load_threads_client()
+        published_id = publish_lead_reply(threads, post_id, text)
+    except ThreadsAPIError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"published_id": published_id})
 
 
 def main() -> None:

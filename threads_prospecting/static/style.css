@@ -169,6 +169,82 @@ button.secondary {
   color: var(--warn);
 }
 
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.hint code {
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+h3 {
+  font-size: 15px;
+  margin-top: 24px;
+  margin-bottom: 10px;
+}
+
+.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.lead-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 14px;
+}
+
+.lead-card .lead-author {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.lead-card .lead-text {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+}
+
+.lead-card textarea {
+  margin-top: 0;
+}
+
+.lead-card .lead-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.badge.skip {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.badge.published {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
 footer {
   max-width: 720px;
   margin: 24px auto 0;
