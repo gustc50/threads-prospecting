@@ -5,6 +5,15 @@ a partir de um contexto de conta configurável (nicho, tom de voz e público-alv
 
 ## Setup
 
+### Windows (mais fácil)
+
+Dê dois cliques em `iniciar.bat`. Ele cria o ambiente virtual, instala as
+dependências, cria `.env` e `account.yaml` a partir dos modelos (abrindo o
+Bloco de Notas para você preencher na primeira execução) e mostra um menu
+para gerar posts ou respostas sem precisar digitar comandos.
+
+### Manual (Windows/macOS/Linux)
+
 ```bash
 pip install -r requirements.txt
 cp .env.example .env       # preencha ANTHROPIC_API_KEY
